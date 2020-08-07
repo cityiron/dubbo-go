@@ -16,6 +16,8 @@ Apache License, Version 2.0
 
 ## Release note ##
 
+[v1.5.0 - July 24, 2020](https://github.com/apache/dubbo-go/releases/tag/v1.5.0)
+
 [v1.4.0 - Mar 17, 2020](https://github.com/apache/dubbo-go/releases/tag/v1.4.0)
 
 [v1.3.0 - Mar 1, 2020](https://github.com/apache/dubbo-go/releases/tag/v1.3.0)
@@ -30,7 +32,7 @@ Apache License, Version 2.0
 
 Both extension module and layered project architecture is according to Apache Dubbo (including protocol layer, registry layer, cluster layer, config layer and so on), the advantage of this arch is as following: you can implement these layered interfaces in your own way, override the default implementation of dubbo-go by calling 'extension.SetXXX' of extension, complete your special needs without modifying the source code. At the same time, you are welcome to contribute implementation of useful extension to the community.
 
-![frame design](https://raw.githubusercontent.com/wiki/dubbo/dubbo-go/dubbo-go%E4%BB%A3%E7%A0%81%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1.png)
+![dubbo go extend](./doc/pic/arch/dubbo-go-ext.png)
 
 If you wanna know more about dubbo-go, please visit this reference [Project Architeture design](https://github.com/apache/dubbo-go/wiki/dubbo-go-V1.0-design)
 
@@ -49,6 +51,7 @@ Finished List:
 - Codec
     * JsonRPC V2
     * Hessian V2
+    * [json for grpc](https://github.com/apache/dubbo-go/pull/582)
 
 - Protocol
     * Dubbo
@@ -110,6 +113,17 @@ Finished List:
     * [For dubbo](https://github.com/apache/dubbo-go/pull/344)
     * [For grpc](https://github.com/apache/dubbo-go/pull/397)
 
+- Metadata Center
+    * [Nacos](https://github.com/apache/dubbo-go/pull/522)
+    * [Zookeeper](https://github.com/apache/dubbo-go/pull/633)
+    * [Etcd](https://github.com/apache/dubbo-go/blob/9a5990d9a9c3d5e6633c0d7d926c156416bcb931/metadata/report/etcd/report.go)
+    * [Consul](https://github.com/apache/dubbo-go/pull/633)
+
+- Service discovery
+    * [Nacos](https://github.com/apache/dubbo-go/blob/9a5990d9a9c3d5e6633c0d7d926c156416bcb931/registry/nacos/service_discovery.go)
+    * [Zookeeper](https://github.com/apache/dubbo-go/blob/9a5990d9a9c3d5e6633c0d7d926c156416bcb931/registry/zookeeper/service_discovery.go)
+    * [Etcd](https://github.com/apache/dubbo-go/blob/9a5990d9a9c3d5e6633c0d7d926c156416bcb931/registry/etcdv3/service_discovery.go)
+
 - Others:
     * start check
     * connecting certain provider
@@ -117,11 +131,6 @@ Finished List:
     * multi-registries
     * multi-versions
     * service group
-
-Working List:
-
-- Metadata Center (dubbo v2.7.x)
-- Service Discovery (dubbo v2.7.x)
 
 You can know more about dubbo-go by its [roadmap](https://github.com/apache/dubbo-go/wiki/Roadmap).
 

@@ -31,11 +31,15 @@ func init() {
 	extension.SetCluster(failfast, NewFailFastCluster)
 }
 
-// NewFailFastCluster ...
+// NewFailFastCluster returns a failfast cluster instance.
+//
+// Fast failure, only made a call, failure immediately error. Usually used for non-idempotent write operations,
+// such as adding records.
 func NewFailFastCluster() cluster.Cluster {
 	return &failfastCluster{}
 }
 
+// Join returns a baseClusterInvoker instance
 func (cluster *failfastCluster) Join(directory cluster.Directory) protocol.Invoker {
 	return newFailFastClusterInvoker(directory)
 }

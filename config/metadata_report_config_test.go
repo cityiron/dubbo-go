@@ -15,32 +15,36 @@
  * limitations under the License.
  */
 
-package match
+package config
 
-import (
-	"testing"
-)
+import "testing"
 
 import (
 	"github.com/stretchr/testify/assert"
 )
 
-import (
-	"github.com/apache/dubbo-go/common"
-)
-
-func TestIsMatchInternalPattern(t *testing.T) {
-	assert.Equal(t, true, isMatchInternalPattern("*", "value"))
-	assert.Equal(t, true, isMatchInternalPattern("", ""))
-	assert.Equal(t, false, isMatchInternalPattern("", "value"))
-	assert.Equal(t, true, isMatchInternalPattern("value", "value"))
-	assert.Equal(t, true, isMatchInternalPattern("v*", "value"))
-	assert.Equal(t, true, isMatchInternalPattern("*ue", "value"))
-	assert.Equal(t, true, isMatchInternalPattern("*e", "value"))
-	assert.Equal(t, true, isMatchInternalPattern("v*e", "value"))
-}
-
-func TestIsMatchGlobPattern(t *testing.T) {
-	url, _ := common.NewURL("dubbo://localhost:8080/Foo?key=v*e")
-	assert.Equal(t, true, IsMatchGlobalPattern("$key", "value", &url))
+func TestMetadataReportConfig_ToUrl(t *testing.T) {
+	GetBaseConfig().Remotes["mock"] = &RemoteConfig{
+		Address:    "127.0.0.1:2181",
+		Username:   "test",
+		Password:   "test",
+		TimeoutStr: "3s",
+	}
+	metadataReportConfig := MetadataReportConfig{
+		Protocol:  "mock",
+		RemoteRef: "mock",
+		Params: map[string]string{
+			"k": "v",
+		},
+	}
+	url, error := metadataReportConfig.ToUrl()
+	assert.NoError(t, error)
+	assert.Equal(t, "mock", url.Protocol)
+	assert.Equal(t, "127.0.0.1:2181", url.Location)
+	assert.Equal(t, "127.0.0.1", url.Ip)
+	assert.Equal(t, "2181", url.Port)
+	assert.Equal(t, "test", url.Username)
+	assert.Equal(t, "test", url.Password)
+	assert.Equal(t, "v", url.GetParam("k", ""))
+	assert.Equal(t, "mock", url.GetParam("metadata", ""))
 }

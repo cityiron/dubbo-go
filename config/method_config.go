@@ -25,13 +25,13 @@ import (
 	"github.com/apache/dubbo-go/common/constant"
 )
 
-// MethodConfig ...
+// MethodConfig defines method config
 type MethodConfig struct {
 	InterfaceId                 string
 	InterfaceName               string
 	Name                        string `yaml:"name"  json:"name,omitempty" property:"name"`
 	Retries                     string `yaml:"retries"  json:"retries,omitempty" property:"retries"`
-	Loadbalance                 string `yaml:"loadbalance"  json:"loadbalance,omitempty" property:"loadbalance"`
+	LoadBalance                 string `yaml:"loadbalance"  json:"loadbalance,omitempty" property:"loadbalance"`
 	Weight                      int64  `yaml:"weight"  json:"weight,omitempty" property:"weight"`
 	TpsLimitInterval            string `yaml:"tps.limit.interval" json:"tps.limit.interval,omitempty" property:"tps.limit.interval"`
 	TpsLimitRate                string `yaml:"tps.limit.rate" json:"tps.limit.rate,omitempty" property:"tps.limit.rate"`
@@ -42,7 +42,7 @@ type MethodConfig struct {
 	RequestTimeout              string `yaml:"timeout"  json:"timeout,omitempty" property:"timeout"`
 }
 
-// Prefix ...
+// nolint
 func (c *MethodConfig) Prefix() string {
 	if len(c.InterfaceId) != 0 {
 		return constant.DUBBO + "." + c.InterfaceName + "." + c.InterfaceId + "." + c.Name + "."
@@ -51,7 +51,7 @@ func (c *MethodConfig) Prefix() string {
 	return constant.DUBBO + "." + c.InterfaceName + "." + c.Name + "."
 }
 
-// UnmarshalYAML ...
+// UnmarshalYAML unmarshals the MethodConfig by @unmarshal function
 func (c *MethodConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := defaults.Set(c); err != nil {
 		return err

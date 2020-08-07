@@ -51,7 +51,7 @@ func (c *TestStruct) JavaClassName() string {
 
 type TestService struct{}
 
-// MethodOne ...
+// nolint
 func (ts *TestService) MethodOne(_ context.Context, test1 *TestStruct, test2 []TestStruct,
 	test3 interface{}, test4 []interface{}, test5 *string) (*TestStruct, error) {
 	if test1 == nil {
@@ -72,7 +72,7 @@ func (ts *TestService) MethodOne(_ context.Context, test1 *TestStruct, test2 []T
 	return &TestStruct{}, nil
 }
 
-// Reference ...
+// nolint
 func (*TestService) Reference() string {
 	return "com.test.Path"
 }
@@ -96,7 +96,7 @@ func TestGenericServiceFilterInvoke(t *testing.T) {
 			hessian.Object("222")},
 	}
 	s := &TestService{}
-	_, _ = common.ServiceMap.Register("testprotocol", s)
+	_, _ = common.ServiceMap.Register("TestService", "testprotocol", s)
 	rpcInvocation := invocation.NewRPCInvocation(methodName, aurguments, nil)
 	filter := GetGenericServiceFilter()
 	url, _ := common.NewURL("testprotocol://127.0.0.1:20000/com.test.Path")

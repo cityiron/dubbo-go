@@ -19,7 +19,6 @@ package etcdv3
 
 import (
 	"context"
-	"path"
 	"sync"
 	"time"
 )
@@ -36,22 +35,23 @@ import (
 )
 
 const (
-	// ConnDelay connection dalay
+	// ConnDelay connection delay
 	ConnDelay = 3
 	// MaxFailTimes max failure times
 	MaxFailTimes = 15
 	// RegistryETCDV3Client client name
 	RegistryETCDV3Client = "etcd registry"
+	// metadataETCDV3Client client name
+	MetadataETCDV3Client = "etcd metadata"
 )
 
 var (
-	// ErrNilETCDV3Client ...
+	// Defines related errors
 	ErrNilETCDV3Client = perrors.New("etcd raw client is nil") // full describe the ERR
-	// ErrKVPairNotFound ...
-	ErrKVPairNotFound = perrors.New("k/v pair not found")
+	ErrKVPairNotFound  = perrors.New("k/v pair not found")
 )
 
-// Options ...
+// nolint
 type Options struct {
 	name      string
 	endpoints []string
@@ -60,40 +60,39 @@ type Options struct {
 	heartbeat int // heartbeat second
 }
 
-// Option ...
+// Option will define a function of handling Options
 type Option func(*Options)
 
-// WithEndpoints ...
+// WithEndpoints sets etcd client endpoints
 func WithEndpoints(endpoints ...string) Option {
 	return func(opt *Options) {
 		opt.endpoints = endpoints
 	}
 }
 
-// WithName ...
+// WithName sets etcd client name
 func WithName(name string) Option {
 	return func(opt *Options) {
 		opt.name = name
 	}
 }
 
-// WithTimeout ...
+// WithTimeout sets etcd client timeout
 func WithTimeout(timeout time.Duration) Option {
 	return func(opt *Options) {
 		opt.timeout = timeout
 	}
 }
 
-// WithHeartbeat ...
+// WithHeartbeat sets etcd client heartbeat
 func WithHeartbeat(heartbeat int) Option {
 	return func(opt *Options) {
 		opt.heartbeat = heartbeat
 	}
 }
 
-// ValidateClient ...
+// ValidateClient validates client and sets options
 func ValidateClient(container clientFacade, opts ...Option) error {
-
 	options := &Options{
 		heartbeat: 1, // default heartbeat
 	}
@@ -107,7 +106,7 @@ func ValidateClient(container clientFacade, opts ...Option) error {
 
 	// new Client
 	if container.Client() == nil {
-		newClient, err := newClient(options.name, options.endpoints, options.timeout, options.heartbeat)
+		newClient, err := NewClient(options.name, options.endpoints, options.timeout, options.heartbeat)
 		if err != nil {
 			logger.Warnf("new etcd client (name{%s}, etcd addresses{%v}, timeout{%d}) = error{%v}",
 				options.name, options.endpoints, options.timeout, err)
@@ -118,8 +117,7 @@ func ValidateClient(container clientFacade, opts ...Option) error {
 
 	// Client lose connection with etcd server
 	if container.Client().rawClient == nil {
-
-		newClient, err := newClient(options.name, options.endpoints, options.timeout, options.heartbeat)
+		newClient, err := NewClient(options.name, options.endpoints, options.timeout, options.heartbeat)
 		if err != nil {
 			logger.Warnf("new etcd client (name{%s}, etcd addresses{%v}, timeout{%d}) = error{%v}",
 				options.name, options.endpoints, options.timeout, err)
@@ -131,7 +129,24 @@ func ValidateClient(container clientFacade, opts ...Option) error {
 	return nil
 }
 
-// Client ...
+//  nolint
+func NewServiceDiscoveryClient(opts ...Option) *Client {
+	options := &Options{
+		heartbeat: 1, // default heartbeat
+	}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	newClient, err := NewClient(options.name, options.endpoints, options.timeout, options.heartbeat)
+	if err != nil {
+		logger.Errorf("new etcd client (name{%s}, etcd addresses{%v}, timeout{%d}) = error{%v}",
+			options.name, options.endpoints, options.timeout, err)
+	}
+	return newClient
+}
+
+// Client represents etcd client Configuration
 type Client struct {
 	lock sync.RWMutex
 
@@ -142,15 +157,15 @@ type Client struct {
 	heartbeat int
 
 	ctx       context.Context    // if etcd server connection lose, the ctx.Done will be sent msg
-	cancel    context.CancelFunc // cancel the ctx,  all watcher will stopped
+	cancel    context.CancelFunc // cancel the ctx, all watcher will stopped
 	rawClient *clientv3.Client
 
 	exit chan struct{}
 	Wait sync.WaitGroup
 }
 
-func newClient(name string, endpoints []string, timeout time.Duration, heartbeat int) (*Client, error) {
-
+// nolint
+func NewClient(name string, endpoints []string, timeout time.Duration, heartbeat int) (*Client, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	rawClient, err := clientv3.New(clientv3.Config{
 		Context:     ctx,
@@ -163,7 +178,6 @@ func newClient(name string, endpoints []string, timeout time.Duration, heartbeat
 	}
 
 	c := &Client{
-
 		name:      name,
 		timeout:   timeout,
 		endpoints: endpoints,
@@ -184,7 +198,6 @@ func newClient(name string, endpoints []string, timeout time.Duration, heartbeat
 
 // NOTICE: need to get the lock before calling this method
 func (c *Client) clean() {
-
 	// close raw client
 	c.rawClient.Close()
 
@@ -196,7 +209,6 @@ func (c *Client) clean() {
 }
 
 func (c *Client) stop() bool {
-
 	select {
 	case <-c.exit:
 		return true
@@ -206,9 +218,8 @@ func (c *Client) stop() bool {
 	return false
 }
 
-// Close ...
+// nolint
 func (c *Client) Close() {
-
 	if c == nil {
 		return
 	}
@@ -220,15 +231,14 @@ func (c *Client) Close() {
 	c.Wait.Wait()
 
 	c.lock.Lock()
+	defer c.lock.Unlock()
 	if c.rawClient != nil {
 		c.clean()
 	}
-	c.lock.Unlock()
 	logger.Warnf("etcd client{name:%s, endpoints:%s} exit now.", c.name, c.endpoints)
 }
 
 func (c *Client) maintenanceStatus() error {
-
 	s, err := concurrency.NewSession(c.rawClient, concurrency.WithTTL(c.heartbeat))
 	if err != nil {
 		return perrors.WithMessage(err, "new session with server")
@@ -241,7 +251,6 @@ func (c *Client) maintenanceStatus() error {
 }
 
 func (c *Client) maintenanceStatusLoop(s *concurrency.Session) {
-
 	defer func() {
 		c.Wait.Done()
 		logger.Infof("etcd client {endpoints:%v, name:%s} maintenance goroutine game over.", c.endpoints, c.name)
@@ -265,10 +274,8 @@ func (c *Client) maintenanceStatusLoop(s *concurrency.Session) {
 	}
 }
 
-// if k not exist will put k/v in etcd
-// if k is already exist in etcd, return nil
+// if k not exist will put k/v in etcd, otherwise return nil
 func (c *Client) put(k string, v string, opts ...clientv3.OpOption) error {
-
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -280,15 +287,27 @@ func (c *Client) put(k string, v string, opts ...clientv3.OpOption) error {
 		If(clientv3.Compare(clientv3.Version(k), "<", 1)).
 		Then(clientv3.OpPut(k, v, opts...)).
 		Commit()
-	if err != nil {
-		return err
+	return err
+}
 
+// if k not exist will put k/v in etcd
+// if k is already exist in etcd, replace it
+func (c *Client) update(k string, v string, opts ...clientv3.OpOption) error {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	if c.rawClient == nil {
+		return ErrNilETCDV3Client
 	}
-	return nil
+
+	_, err := c.rawClient.Txn(c.ctx).
+		If(clientv3.Compare(clientv3.Version(k), "!=", -1)).
+		Then(clientv3.OpPut(k, v, opts...)).
+		Commit()
+	return err
 }
 
 func (c *Client) delete(k string) error {
-
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -297,15 +316,10 @@ func (c *Client) delete(k string) error {
 	}
 
 	_, err := c.rawClient.Delete(c.ctx, k)
-	if err != nil {
-		return err
-
-	}
-	return nil
+	return err
 }
 
 func (c *Client) get(k string) (string, error) {
-
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -325,9 +339,8 @@ func (c *Client) get(k string) (string, error) {
 	return string(resp.Kvs[0].Value), nil
 }
 
-// CleanKV ...
+// nolint
 func (c *Client) CleanKV() error {
-
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -336,15 +349,10 @@ func (c *Client) CleanKV() error {
 	}
 
 	_, err := c.rawClient.Delete(c.ctx, "", clientv3.WithPrefix())
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (c *Client) getChildren(k string) ([]string, []string, error) {
-
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -361,21 +369,16 @@ func (c *Client) getChildren(k string) ([]string, []string, error) {
 		return nil, nil, ErrKVPairNotFound
 	}
 
-	var (
-		kList []string
-		vList []string
-	)
-
+	kList := make([]string, 0, len(resp.Kvs))
+	vList := make([]string, 0, len(resp.Kvs))
 	for _, kv := range resp.Kvs {
 		kList = append(kList, string(kv.Key))
 		vList = append(vList, string(kv.Value))
 	}
-
 	return kList, vList, nil
 }
 
 func (c *Client) watchWithPrefix(prefix string) (clientv3.WatchChan, error) {
-
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -387,7 +390,6 @@ func (c *Client) watchWithPrefix(prefix string) (clientv3.WatchChan, error) {
 }
 
 func (c *Client) watch(k string) (clientv3.WatchChan, error) {
-
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -399,7 +401,6 @@ func (c *Client) watch(k string) (clientv3.WatchChan, error) {
 }
 
 func (c *Client) keepAliveKV(k string, v string) error {
-
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -415,22 +416,23 @@ func (c *Client) keepAliveKV(k string, v string) error {
 	keepAlive, err := c.rawClient.KeepAlive(c.ctx, lease.ID)
 	if err != nil || keepAlive == nil {
 		c.rawClient.Revoke(c.ctx, lease.ID)
-		return perrors.WithMessage(err, "keep alive lease")
+		if err != nil {
+			return perrors.WithMessage(err, "keep alive lease")
+		} else {
+			return perrors.New("keep alive lease")
+		}
 	}
 
 	_, err = c.rawClient.Put(c.ctx, k, v, clientv3.WithLease(lease.ID))
-	if err != nil {
-		return perrors.WithMessage(err, "put k/v with lease")
-	}
-	return nil
+	return perrors.WithMessage(err, "put k/v with lease")
 }
 
-// Done ...
+// nolint
 func (c *Client) Done() <-chan struct{} {
 	return c.exit
 }
 
-// Valid ...
+// nolint
 func (c *Client) Valid() bool {
 	select {
 	case <-c.exit:
@@ -439,85 +441,54 @@ func (c *Client) Valid() bool {
 	}
 
 	c.lock.RLock()
-	if c.rawClient == nil {
-		c.lock.RUnlock()
-		return false
-	}
-	c.lock.RUnlock()
-	return true
+	defer c.lock.RUnlock()
+	return c.rawClient != nil
 }
 
-// Create ...
+// nolint
 func (c *Client) Create(k string, v string) error {
-
 	err := c.put(k, v)
-	if err != nil {
-		return perrors.WithMessagef(err, "put k/v (key: %s value %s)", k, v)
-	}
-	return nil
+	return perrors.WithMessagef(err, "put k/v (key: %s value %s)", k, v)
 }
 
-// Delete ...
+// Update key value ...
+func (c *Client) Update(k, v string) error {
+	err := c.update(k, v)
+	return perrors.WithMessagef(err, "Update k/v (key: %s value %s)", k, v)
+}
+
+// nolint
 func (c *Client) Delete(k string) error {
-
 	err := c.delete(k)
-	if err != nil {
-		return perrors.WithMessagef(err, "delete k/v (key %s)", k)
-	}
-
-	return nil
+	return perrors.WithMessagef(err, "delete k/v (key %s)", k)
 }
 
-// RegisterTemp ...
-func (c *Client) RegisterTemp(basePath string, node string) (string, error) {
-
-	completeKey := path.Join(basePath, node)
-
-	err := c.keepAliveKV(completeKey, "")
-	if err != nil {
-		return "", perrors.WithMessagef(err, "keepalive kv (key %s)", completeKey)
-	}
-
-	return completeKey, nil
+// RegisterTemp registers a temporary node
+func (c *Client) RegisterTemp(k, v string) error {
+	err := c.keepAliveKV(k, v)
+	return perrors.WithMessagef(err, "keepalive kv (key %s)", k)
 }
 
-// GetChildrenKVList ...
+// GetChildrenKVList gets children kv list by @k
 func (c *Client) GetChildrenKVList(k string) ([]string, []string, error) {
-
 	kList, vList, err := c.getChildren(k)
-	if err != nil {
-		return nil, nil, perrors.WithMessagef(err, "get key children (key %s)", k)
-	}
-	return kList, vList, nil
+	return kList, vList, perrors.WithMessagef(err, "get key children (key %s)", k)
 }
 
-// Get ...
+// Get gets value by @k
 func (c *Client) Get(k string) (string, error) {
-
 	v, err := c.get(k)
-	if err != nil {
-		return "", perrors.WithMessagef(err, "get key value (key %s)", k)
-	}
-
-	return v, nil
+	return v, perrors.WithMessagef(err, "get key value (key %s)", k)
 }
 
-// Watch ...
+// Watch watches on spec key
 func (c *Client) Watch(k string) (clientv3.WatchChan, error) {
-
 	wc, err := c.watch(k)
-	if err != nil {
-		return nil, perrors.WithMessagef(err, "watch prefix (key %s)", k)
-	}
-	return wc, nil
+	return wc, perrors.WithMessagef(err, "watch prefix (key %s)", k)
 }
 
-// WatchWithPrefix ...
+// WatchWithPrefix watches on spec prefix
 func (c *Client) WatchWithPrefix(prefix string) (clientv3.WatchChan, error) {
-
 	wc, err := c.watchWithPrefix(prefix)
-	if err != nil {
-		return nil, perrors.WithMessagef(err, "watch prefix (key %s)", prefix)
-	}
-	return wc, nil
+	return wc, perrors.WithMessagef(err, "watch prefix (key %s)", prefix)
 }

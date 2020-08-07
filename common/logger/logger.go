@@ -40,13 +40,13 @@ var (
 	logger Logger
 )
 
-// DubboLogger ...
+// nolint
 type DubboLogger struct {
 	Logger
 	dynamicLevel zap.AtomicLevel
 }
 
-// Logger ...
+// Logger is the interface for Logger types
 type Logger interface {
 	Info(args ...interface{})
 	Warn(args ...interface{})
@@ -67,7 +67,7 @@ func init() {
 	}
 }
 
-// InitLog ...
+// InitLog use for init logger by call InitLogger
 func InitLog(logConfFile string) error {
 	if logConfFile == "" {
 		InitLogger(nil)
@@ -96,11 +96,10 @@ func InitLog(logConfFile string) error {
 	return nil
 }
 
-// InitLogger ...
+// InitLogger use for init logger by @conf
 func InitLogger(conf *zap.Config) {
 	var zapLoggerConfig zap.Config
 	if conf == nil {
-		zapLoggerConfig = zap.NewDevelopmentConfig()
 		zapLoggerEncoderConfig := zapcore.EncoderConfig{
 			TimeKey:        "time",
 			LevelKey:       "level",
@@ -113,30 +112,36 @@ func InitLogger(conf *zap.Config) {
 			EncodeDuration: zapcore.SecondsDurationEncoder,
 			EncodeCaller:   zapcore.ShortCallerEncoder,
 		}
-		zapLoggerConfig.EncoderConfig = zapLoggerEncoderConfig
+		zapLoggerConfig = zap.Config{
+			Level:            zap.NewAtomicLevelAt(zap.DebugLevel),
+			Development:      false,
+			Encoding:         "console",
+			EncoderConfig:    zapLoggerEncoderConfig,
+			OutputPaths:      []string{"stderr"},
+			ErrorOutputPaths: []string{"stderr"},
+		}
 	} else {
 		zapLoggerConfig = *conf
 	}
 	zapLogger, _ := zapLoggerConfig.Build(zap.AddCallerSkip(1))
-	//logger = zapLogger.Sugar()
 	logger = &DubboLogger{Logger: zapLogger.Sugar(), dynamicLevel: zapLoggerConfig.Level}
 
 	// set getty log
 	getty.SetLogger(logger)
 }
 
-// SetLogger ...
+// SetLogger sets logger for dubbo and getty
 func SetLogger(log Logger) {
 	logger = log
 	getty.SetLogger(logger)
 }
 
-// GetLogger ...
+// GetLogger gets the logger
 func GetLogger() Logger {
 	return logger
 }
 
-// SetLoggerLevel ...
+// SetLoggerLevel use for set logger level
 func SetLoggerLevel(level string) bool {
 	if l, ok := logger.(OpsLogger); ok {
 		l.SetLoggerLevel(level)
@@ -145,13 +150,13 @@ func SetLoggerLevel(level string) bool {
 	return false
 }
 
-// OpsLogger ...
+// OpsLogger use for the SetLoggerLevel
 type OpsLogger interface {
 	Logger
 	SetLoggerLevel(level string)
 }
 
-// SetLoggerLevel ...
+// SetLoggerLevel use for set logger level
 func (dl *DubboLogger) SetLoggerLevel(level string) {
 	l := new(zapcore.Level)
 	l.Set(level)

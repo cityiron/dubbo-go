@@ -31,11 +31,15 @@ func init() {
 	extension.SetCluster(forking, NewForkingCluster)
 }
 
-// NewForkingCluster ...
+// NewForkingCluster returns a forking cluster instance.
+//
+// Multiple servers are invoked in parallel, returning as soon as one succeeds.
+// Usually it is used for real-time demanding read operations while wasting more service resources.
 func NewForkingCluster() cluster.Cluster {
 	return &forkingCluster{}
 }
 
+// Join returns a baseClusterInvoker instance
 func (cluster *forkingCluster) Join(directory cluster.Directory) protocol.Invoker {
 	return newForkingClusterInvoker(directory)
 }

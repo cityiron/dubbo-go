@@ -20,6 +20,7 @@ package rest
 import (
 	"context"
 	"fmt"
+	"net/http"
 )
 
 import (
@@ -34,12 +35,14 @@ import (
 	"github.com/apache/dubbo-go/protocol/rest/config"
 )
 
+// nolint
 type RestInvoker struct {
 	protocol.BaseInvoker
 	client              client.RestClient
 	restMethodConfigMap map[string]*config.RestMethodConfig
 }
 
+// NewRestInvoker returns a RestInvoker
 func NewRestInvoker(url common.URL, client *client.RestClient, restMethodConfig map[string]*config.RestMethodConfig) *RestInvoker {
 	return &RestInvoker{
 		BaseInvoker:         *protocol.NewBaseInvoker(url),
@@ -48,6 +51,7 @@ func NewRestInvoker(url common.URL, client *client.RestClient, restMethodConfig 
 	}
 }
 
+// Invoke is used to call service method by invocation
 func (ri *RestInvoker) Invoke(ctx context.Context, invocation protocol.Invocation) protocol.Result {
 	inv := invocation.(*invocation_impl.RPCInvocation)
 	methodConfig := ri.restMethodConfigMap[inv.MethodName()]
@@ -56,7 +60,7 @@ func (ri *RestInvoker) Invoke(ctx context.Context, invocation protocol.Invocatio
 		body        interface{}
 		pathParams  map[string]string
 		queryParams map[string]string
-		headers     map[string]string
+		header      http.Header
 		err         error
 	)
 	if methodConfig == nil {
@@ -71,24 +75,21 @@ func (ri *RestInvoker) Invoke(ctx context.Context, invocation protocol.Invocatio
 		result.Err = err
 		return &result
 	}
-	if headers, err = restStringMapTransform(methodConfig.HeadersMap, inv.Arguments()); err != nil {
+	if header, err = getRestHttpHeader(methodConfig, inv.Arguments()); err != nil {
 		result.Err = err
 		return &result
 	}
 	if len(inv.Arguments()) > methodConfig.Body && methodConfig.Body >= 0 {
 		body = inv.Arguments()[methodConfig.Body]
 	}
-
-	req := &client.RestRequest{
+	req := &client.RestClientRequest{
 		Location:    ri.GetUrl().Location,
-		Produces:    methodConfig.Produces,
-		Consumes:    methodConfig.Consumes,
 		Method:      methodConfig.MethodType,
 		Path:        methodConfig.Path,
 		PathParams:  pathParams,
 		QueryParams: queryParams,
 		Body:        body,
-		Headers:     headers,
+		Header:      header,
 	}
 	result.Err = ri.client.Do(req, inv.Reply())
 	if result.Err == nil {
@@ -97,6 +98,7 @@ func (ri *RestInvoker) Invoke(ctx context.Context, invocation protocol.Invocatio
 	return &result
 }
 
+// restStringMapTransform is used to transform rest map
 func restStringMapTransform(paramsMap map[int]string, args []interface{}) (map[string]string, error) {
 	resMap := make(map[string]string, len(paramsMap))
 	for k, v := range paramsMap {
@@ -106,4 +108,19 @@ func restStringMapTransform(paramsMap map[int]string, args []interface{}) (map[s
 		resMap[v] = fmt.Sprint(args[k])
 	}
 	return resMap, nil
+}
+
+// nolint
+func getRestHttpHeader(methodConfig *config.RestMethodConfig, args []interface{}) (http.Header, error) {
+	header := http.Header{}
+	headersMap := methodConfig.HeadersMap
+	header.Set("Content-Type", methodConfig.Consumes)
+	header.Set("Accept", methodConfig.Produces)
+	for k, v := range headersMap {
+		if k >= len(args) || k < 0 {
+			return nil, perrors.Errorf("[Rest Invoke] Index %v is out of bundle", k)
+		}
+		header.Set(v, fmt.Sprint(args[k]))
+	}
+	return header, nil
 }

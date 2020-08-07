@@ -31,11 +31,14 @@ func init() {
 	extension.SetCluster(available, NewAvailableCluster)
 }
 
-// NewAvailableCluster ...
+// NewAvailableCluster returns a cluster instance
+//
+// Obtain available service providers
 func NewAvailableCluster() cluster.Cluster {
 	return &availableCluster{}
 }
 
+// Join returns a baseClusterInvoker instance
 func (cluser *availableCluster) Join(directory cluster.Directory) protocol.Invoker {
 	return NewAvailableClusterInvoker(directory)
 }

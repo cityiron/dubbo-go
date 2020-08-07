@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	// LeastActive ...
+	// LeastActive is used to set the load balance extension
 	LeastActive = "leastactive"
 )
 
@@ -39,11 +39,14 @@ func init() {
 type leastActiveLoadBalance struct {
 }
 
-// NewLeastActiveLoadBalance ...
+// NewLeastActiveLoadBalance returns a least active load balance.
+//
+// A random mechanism based on actives, actives means the number of a consumer's requests have been sent to provider but not yet got response.
 func NewLeastActiveLoadBalance() cluster.LoadBalance {
 	return &leastActiveLoadBalance{}
 }
 
+// Select gets invoker based on least active load balancing strategy
 func (lb *leastActiveLoadBalance) Select(invokers []protocol.Invoker, invocation protocol.Invocation) protocol.Invoker {
 	count := len(invokers)
 	if count == 0 {

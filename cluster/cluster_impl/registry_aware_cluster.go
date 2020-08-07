@@ -29,11 +29,12 @@ func init() {
 	extension.SetCluster("registryAware", NewRegistryAwareCluster)
 }
 
-// NewRegistryAwareCluster ...
+// NewRegistryAwareCluster returns a registry aware cluster instance
 func NewRegistryAwareCluster() cluster.Cluster {
 	return &registryAwareCluster{}
 }
 
+// nolint
 func (cluster *registryAwareCluster) Join(directory cluster.Directory) protocol.Invoker {
 	return newRegistryAwareClusterInvoker(directory)
 }

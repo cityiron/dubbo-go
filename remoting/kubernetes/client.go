@@ -90,6 +90,22 @@ func (c *Client) Create(k, v string) error {
 	return nil
 }
 
+// CreatePro creates k/v pair in watcher-set
+func (c *Client) CreatePro(k, v, propKey string) error {
+
+	// the read current pod must be lock, protect every
+	// create operation can be atomic
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	if err := c.controller.addAnnotationForCurrentPodPro(k, v, propKey); err != nil {
+		return perrors.WithMessagef(err, "add annotation @key = %s @value = %s", k, v)
+	}
+
+	logger.Debugf("put the @key = %s @value = %s success", k, v)
+	return nil
+}
+
 // GetChildren gets k children list from kubernetes-watcherSet
 func (c *Client) GetChildren(k string) ([]string, []string, error) {
 

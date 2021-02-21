@@ -524,6 +524,36 @@ func (c *dubboRegistryController) assembleDUBBOAnnotations(k, v string, currentP
 	return
 }
 
+// assembleDUBBOAnnotationsPro assembles the dubbo kubernetes annotations
+// accord the current pod && (k,v) assemble the old-pod, new-pod
+func (c *dubboRegistryController) assembleDUBBOAnnotationsPro(k, v, propKey string, currentPod *v1.Pod) (oldPod *v1.Pod, newPod *v1.Pod, err error) {
+
+	oldPod = &v1.Pod{}
+	newPod = &v1.Pod{}
+	oldPod.Annotations = make(map[string]string, 8)
+	newPod.Annotations = make(map[string]string, 8)
+
+	for k, v := range currentPod.GetAnnotations() {
+		oldPod.Annotations[k] = v
+		newPod.Annotations[k] = v
+	}
+
+	al, err := c.unmarshalRecord(oldPod.GetAnnotations()[propKey])
+	if err != nil {
+		err = perrors.WithMessage(err, "unmarshal record")
+		return
+	}
+
+	newAnnotations, err := c.marshalRecord(append(al, &WatcherEvent{Key: k, Value: v}))
+	if err != nil {
+		err = perrors.WithMessage(err, "marshal record")
+		return
+	}
+
+	newPod.Annotations[propKey] = newAnnotations
+	return
+}
+
 // getPatch gets the kubernetes pod patch bytes
 func (c *dubboRegistryController) getPatch(oldPod, newPod *v1.Pod) ([]byte, error) {
 	oldData, err := json.Marshal(oldPod)
@@ -596,3 +626,40 @@ func (c *dubboRegistryController) addAnnotationForCurrentPod(k string, v string)
 		EventType: Create,
 	})
 }
+
+// addAnnotationForCurrentPod adds annotation for current pod
+func (c *dubboRegistryController) addAnnotationForCurrentPodPro(k, v, propKey string) error {
+
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	// 1. accord old pod && (k, v) assemble new pod dubbo annotation v
+	// 2. get patch data
+	// 3. PATCH the pod
+	currentPod, err := c.readCurrentPod()
+	if err != nil {
+		return perrors.WithMessage(err, "read current pod")
+	}
+
+	oldPod, newPod, err := c.assembleDUBBOAnnotationsPro(k, v, propKey, currentPod)
+	if err != nil {
+		return perrors.WithMessage(err, "assemble")
+	}
+
+	patchBytes, err := c.getPatch(oldPod, newPod)
+	if err != nil {
+		return perrors.WithMessage(err, "get patch")
+	}
+
+	_, err = c.patchCurrentPod(patchBytes)
+	if err != nil {
+		return perrors.WithMessage(err, "patch current pod")
+	}
+
+	return c.watcherSet.Put(&WatcherEvent{
+		Key:       k,
+		Value:     v,
+		EventType: Create,
+	})
+}
+

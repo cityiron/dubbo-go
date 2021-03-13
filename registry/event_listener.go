@@ -18,39 +18,47 @@
 package registry
 
 import (
-	"reflect"
+    gxset "github.com/dubbogo/gost/container/set"
+    "reflect"
 )
 
 import (
-	"github.com/apache/dubbo-go/common/observer"
+    "github.com/apache/dubbo-go/common/observer"
 )
 
 // The Service Discovery Changed  Event Listener
 type ServiceInstancesChangedListener struct {
-	ServiceName   string
-	ChangedNotify observer.ChangedNotify
+    ServiceName   string
+    ChangedNotify observer.ChangedNotify
+
+    serviceNames *gxset.HashSet
 }
 
 // OnEvent on ServiceInstancesChangedEvent the service instances change event
 func (lstn *ServiceInstancesChangedListener) OnEvent(e observer.Event) error {
-	lstn.ChangedNotify.Notify(e)
-	return nil
+    lstn.ChangedNotify.Notify(e)
+    return nil
 }
 
 // Accept return true if the name is the same
 func (lstn *ServiceInstancesChangedListener) Accept(e observer.Event) bool {
-	if ce, ok := e.(*ServiceInstancesChangedEvent); ok {
-		return ce.ServiceName == lstn.ServiceName
-	}
-	return false
+    if ce, ok := e.(*ServiceInstancesChangedEvent); ok {
+        return ce.ServiceName == lstn.ServiceName
+    }
+    return false
 }
 
 // GetPriority returns -1, it will be the first invoked listener
 func (lstn *ServiceInstancesChangedListener) GetPriority() int {
-	return -1
+    return -1
 }
 
 // GetEventType returns ServiceInstancesChangedEvent
 func (lstn *ServiceInstancesChangedListener) GetEventType() reflect.Type {
-	return reflect.TypeOf(&ServiceInstancesChangedEvent{})
+    return reflect.TypeOf(&ServiceInstancesChangedEvent{})
+}
+
+// GetServiceNames returns service names
+func (lstn *ServiceInstancesChangedListener) GetServiceNames() *gxset.HashSet {
+    return lstn.serviceNames
 }

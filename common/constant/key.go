@@ -337,5 +337,9 @@ const (
 )
 
 const (
-	KUBERNETES_KEY = "kubernetes"
+	// KubernetesKey kubernetes key
+	KubernetesKey = "kubernetes"
+
+	EnableRegister = "enableRegister"
+	NameSpace      = "namespace"
 )
